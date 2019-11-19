@@ -28,7 +28,7 @@ class Traverse:
         self.stack = None
         self.hansel_stack = None
         self.direction_stack = None
-        self.visited = visited or {}
+        self.visited = {}
         self.rooms = {}
         self.previous_room = None
 
@@ -57,11 +57,12 @@ class Traverse:
 
     def get_visited(self):
         with open("visited.json", "r") as f:
-            self.visited = json.loads(f.read())
+            visited_json = json.loads(f.read())
+            self.visited = {int(key):value for (key,value) in visited_json.items()}
 
     def init_current_room(self):
         room = requests.get("https://lambda-treasure-hunt.herokuapp.com/api/adv/init/", headers={
-                            'Authorization': 'Token 91eab72c1255c3828263a3a60a6cefc409f6461c'}).json()
+                            'Authorization': 'Token 511b799007ac9e828b320eaf2c3d6525557e9502'}).json()
         self.current_room = room
         self.save_to_db(room)
         self.stack.push(room)
@@ -73,12 +74,12 @@ class Traverse:
 
     def move(self, direction):
         new_room = requests.post("https://lambda-treasure-hunt.herokuapp.com/api/adv/move/", json={
-            'direction': direction}, headers={'Authorization': 'Token 91eab72c1255c3828263a3a60a6cefc409f6461c'}).json()
+            'direction': direction}, headers={'Authorization': 'Token  511b799007ac9e828b320eaf2c3d6525557e9502'}).json()
         return new_room
 
     def get_treasure(self):
         treasure = requests.post("https://lambda-treasure-hunt.herokuapp.com/api/adv/take/", json={
-                                 'name': 'treasure'}, headers={'Authorization': 'Token 91eab72c1255c3828263a3a60a6cefc409f6461c'}).json()
+                                 'name': 'treasure'}, headers={'Authorization': 'Token  511b799007ac9e828b320eaf2c3d6525557e9502'}).json()
         print(treasure)
         time.sleep(20)
 
@@ -93,7 +94,7 @@ class Traverse:
         # save visited to json
         self.save_file(self.visited, "visited.json")
 
-    def append_room(self, direction_from):
+    def append_room(self, room, direction_from):
         # add item to visited array with exists as value room number as key
         self.path.append(direction_from)
         self.save_file(self.path, "path.txt")
@@ -102,7 +103,7 @@ class Traverse:
         # set direction to previous room number for current room
         self.visited[room.get(
             'room_id')][self.opposites[direction_from]] = self.previous_room
-        self.visited[previous_room][direction_from] = room.get(
+        self.visited[self.previous_room][direction_from] = room.get(
             'room_id')
         self.save_file(self.visited, "visited.json")
 
@@ -112,7 +113,7 @@ class Traverse:
             # if unexplored add to stack
             if i == '?':
                 # call the api with each of the directions
-                new_room = move(d)
+                new_room = self.move(d)
                 print(new_room)
 
                 time.sleep(new_room.get('cooldown'))
@@ -149,7 +150,7 @@ class Traverse:
                 self.save_new_room(room)
             # add direction to path array and opposite to hansel stack also add room number that goes with that direction to stack
             if direction_from != None and self.previous_room != None:
-                self.append_room(direction_from)
+                self.append_room(room, direction_from)
 
             self.check_exits(room)
 
@@ -173,7 +174,7 @@ class Traverse:
         self.stack.push(new_room)
 
     def run(self):
-        while self.stack.length() or self.hansel_stack.length():
+        while len(self.visited) < 500:
             if self.stack.length():
                 self.explore()
             else:
